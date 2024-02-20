@@ -281,6 +281,53 @@ class KeyEventProvider extends ChangeNotifier with TrayListener {
     trayManager.addListener(this);
     await _setTrayIcon();
     await _setTrayContextMenu();
+
+
+  }
+
+  Map<String, Map<int, KeyEventData>> getTest2(){
+    return _keyboardEvents;
+  }
+
+  Map<int, KeyEventData> getTest3(groupId){
+    return _keyboardEvents[groupId]?? const {};
+  }
+
+  List<int> getTest(groupId){
+    Map<int, KeyEventData> aa = _keyboardEvents[groupId]?? {};
+    List<int> originalKeys = aa.keys.toList(growable: false);
+
+    List<int> validKeys = [];
+
+    for (int baseKey in originalKeys) {
+      KeyEventData? ev = aa[baseKey];
+
+      if (ev != null){
+        validKeys.add(ev.id);
+      }
+      
+      
+    }
+
+    return validKeys;
+  }
+
+  List<int> getValidKeyIds(String gid){
+    List<int> originalKeys = _keyboardEvents[gid]?.keys.toList(growable: false) ?? const [];
+    /* List<int> validKeys = [];
+
+    for (var baseKey in originalKeys) {
+      RawKeyDownEvent ev = _keyboardEvents[gid]?[baseKey] as RawKeyDownEvent;
+
+      validKeys.add(ev.keyId);
+      
+      
+    } */
+    
+
+
+    return originalKeys;
+
   }
 
   _registerMouseListener() async {
@@ -631,11 +678,32 @@ class KeyEventProvider extends ChangeNotifier with TrayListener {
     // track key pressed down
     _keyDown[event.keyId] = event;
 
-    _keyboardEvents[_groupId]![event.keyId] = KeyEventData(
-      event,
-      show: noKeyCapAnimation,
-    );
+    if (!event.isLetter){
+      _keyboardEvents[_groupId]![event.keyId] = KeyEventData(
+            event,
+            show: noKeyCapAnimation,
+          );
 
+    }else{
+      if (_keyboardEvents[_groupId]!.containsKey(event.keyId)){
+
+        int mapLen = _keyboardEvents[_groupId]!.length;
+
+        _keyboardEvents[_groupId]![event.keyId+9000+mapLen] = KeyEventData(
+            event,
+            show: noKeyCapAnimation,
+          );
+      }else{
+        _keyboardEvents[_groupId]![event.keyId] = KeyEventData(
+            event,
+            show: noKeyCapAnimation,
+          );
+      }
+
+      
+    }
+
+    
     // animate with configured key cap animation
     if (!noKeyCapAnimation) {
       _animateIn(_groupId!, event.keyId);

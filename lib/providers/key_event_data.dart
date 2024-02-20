@@ -181,6 +181,9 @@ class KeyEventData {
   // }
 
   // The event is a modifier like control, command, etc.
+
+  int get id => _id;
+
   bool get isModifier => _modifiers.contains(rawEvent.logicalKey);
 
   // The event is an alphabet like Q, A, etc.

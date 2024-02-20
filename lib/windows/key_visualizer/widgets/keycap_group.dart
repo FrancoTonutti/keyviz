@@ -76,14 +76,16 @@ class _KeyCapGroup extends StatelessWidget {
     return Selector<KeyEventProvider, List<int>>(
       builder: (context, keyIds, _) {
         final children = <Widget>[];
-
+        int index = 0;
+        int maxIndex = keyIds.length;
         for (final keyId in keyIds) {
           // add key cap wrapper
           children.add(
             KeyCapWrapper(groupId: groupId, keyId: keyId),
           );
           // add separator/spacing
-          if (keyId != keyIds.last) {
+          //if (keyId != keyIds.last) {
+          if (index +1 < maxIndex) { // Todo: FRANCO
             children.add(
               SizedBox(
                 width: backgroundSpacing *
@@ -98,6 +100,8 @@ class _KeyCapGroup extends StatelessWidget {
               ),
             );
           }
+
+          index += 1;
         }
 
         return Padding(
@@ -112,8 +116,11 @@ class _KeyCapGroup extends StatelessWidget {
         );
       },
       selector: (_, keyEvent) =>
-          keyEvent.keyboardEvents[groupId]?.keys.toList(growable: false) ??
-          const [],
+          //keyEvent.keyboardEvents[groupId]?.keys.toList(growable: false) ?? const [],
+           // keyEvent.getValidKeyIds(groupId),
+            //keyEvent.getTest3(groupId).keys.toList(growable: false),
+            keyEvent.getTest(groupId),
+            
       shouldRebuild: (previous, next) => !listEquals(previous, next),
     );
   }
