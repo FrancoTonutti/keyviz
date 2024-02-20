@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:ffi';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
@@ -121,6 +122,10 @@ class KeyEventProvider extends ChangeNotifier with TrayListener {
   // main list of key events to be consumed by the visualizer
   // may not include history is historyMode is set to none
   final Map<String, Map<int, KeyEventData>> _keyboardEvents = {};
+  final Map<String, Map<String, KeyEventData>> _keyboardRevitEvents = {};
+
+  int? _lastRealTimestampSecs;
+  String _lastGroupId = "";
 
   // filter letters, numbers, symbols, etc. and
   // show hotkeys/keyboard shortuts
@@ -141,7 +146,7 @@ class KeyEventProvider extends ChangeNotifier with TrayListener {
 
   // max history number
   // TODO calculate based on keycap height and screen size
-  final int _maxHistory = 6;
+  final int _maxHistory = 3;//6; FRANCO
 
   // global keyviz toggle shortcut, list of keyIds
   // default [Shift] + [F10]
@@ -169,6 +174,8 @@ class KeyEventProvider extends ChangeNotifier with TrayListener {
   bool _showMouseEvents = _Defaults.showMouseEvents;
 
   Map<String, Map<int, KeyEventData>> get keyboardEvents => _keyboardEvents;
+  Map<String, Map<String, KeyEventData>> get keyboardRevitEvents => _keyboardRevitEvents;
+  
 
   bool get styling => _styling;
   bool get visualizeEvents => _visualizeEvents;
@@ -476,7 +483,7 @@ class KeyEventProvider extends ChangeNotifier with TrayListener {
 
   _onRawKeyEvent(RawKeyEvent event) {
     // key pressed
-    if (event is RawKeyDownEvent && !_keyDown.containsKey(event.keyId)) {
+    if (event is RawKeyDownEvent && (!_keyDown.containsKey(event.keyId) /* || event.isLetter */)) { //Franco
       // check for shortcut pressed
       _unfilteredEvents.add(event.keyId);
       if (listEquals(_unfilteredEvents, keyvizToggleShortcut)) {
@@ -501,7 +508,7 @@ class KeyEventProvider extends ChangeNotifier with TrayListener {
     //   return;
     // }
 
-    // filter unknown key
+    // filter unknown keyaaa
     if (event.logicalKey.keyLabel == "") {
       // fake mouse event
       if (event.data is! RawKeyEventDataMouse) {
@@ -514,7 +521,7 @@ class KeyEventProvider extends ChangeNotifier with TrayListener {
     // check if key pressed again while in view
     // ignoring history and current display events has key id
     if (_ignoreHistory &&
-        (_keyboardEvents[_groupId]?.containsKey(event.keyId) ?? false)) {
+        (_keyboardEvents[_groupId]?.containsKey(event.keyId) ?? false)) { //Franco
       // track key pressed down
       _keyDown[event.keyId] = event;
 
@@ -536,7 +543,7 @@ class KeyEventProvider extends ChangeNotifier with TrayListener {
     // showing history and the last display event
     // has only one key with this key id
     else if ((_keyboardEvents.values.lastOrNull?.length ?? 0) == 1 &&
-        _keyboardEvents.values.last.keys.first == event.keyId) {
+        _keyboardEvents.values.last.keys.first == event.keyId && !event.isLetter) { // FRANCO
       // track key pressed down
       _keyDown[event.keyId] = event;
       // reuse last group id
@@ -555,6 +562,8 @@ class KeyEventProvider extends ChangeNotifier with TrayListener {
 
     // init group id
     _groupId ??= _timestamp;
+    _lastRealTimestampSecs ??= _realTimestamp;
+    _lastGroupId = _groupId as String;
     // create group if not created
     if (!_keyboardEvents.containsKey(_groupId)) {
       _keyboardEvents[_groupId!] = {};
@@ -583,7 +592,7 @@ class KeyEventProvider extends ChangeNotifier with TrayListener {
         // handle pressed again
         if (
             // last pressed event
-            events?.keys.last == event.keyId &&
+            (events?.keys.last == event.keyId && !event.isLetter) && // FRANCO
                 // other keys are pressed down
                 events!.values
                     .take(events.length - 1)
@@ -759,7 +768,20 @@ class KeyEventProvider extends ChangeNotifier with TrayListener {
 
   String get _timestamp {
     final now = DateTime.now();
-    return "${now.minute}${now.second}${now.millisecond}";
+
+    if (_lastGroupId != ""){
+      return _lastGroupId;
+    }
+    // FRANCO
+    //return "${now.minute}${now.second}${now.millisecond}"; //Original
+    return "${now.minute}${now.second}${0}"; //Edit
+  }
+
+  int get _realTimestamp {
+    final now = DateTime.now();
+    // FRANCO
+    //return "${now.minute}${now.second}${now.millisecond}"; //Original
+    return now.hour*3600 + now.minute*60 + now.second; //Edit
   }
 
   _setTrayIcon() async {
