@@ -119,7 +119,7 @@ class _KeyCapGroup extends StatelessWidget {
           //keyEvent.keyboardEvents[groupId]?.keys.toList(growable: false) ?? const [],
            // keyEvent.getValidKeyIds(groupId),
             //keyEvent.getTest3(groupId).keys.toList(growable: false),
-            keyEvent.getTest(groupId),
+            keyEvent.getValidKeyIds(groupId),
             
       shouldRebuild: (previous, next) => !listEquals(previous, next),
     );

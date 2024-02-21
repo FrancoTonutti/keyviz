@@ -293,7 +293,7 @@ class KeyEventProvider extends ChangeNotifier with TrayListener {
     return _keyboardEvents[groupId]?? const {};
   }
 
-  List<int> getTest(groupId){
+  List<int> getValidKeyIds(groupId){
     Map<int, KeyEventData> aa = _keyboardEvents[groupId]?? {};
     List<int> originalKeys = aa.keys.toList(growable: false);
 
@@ -312,23 +312,6 @@ class KeyEventProvider extends ChangeNotifier with TrayListener {
     return validKeys;
   }
 
-  List<int> getValidKeyIds(String gid){
-    List<int> originalKeys = _keyboardEvents[gid]?.keys.toList(growable: false) ?? const [];
-    /* List<int> validKeys = [];
-
-    for (var baseKey in originalKeys) {
-      RawKeyDownEvent ev = _keyboardEvents[gid]?[baseKey] as RawKeyDownEvent;
-
-      validKeys.add(ev.keyId);
-      
-      
-    } */
-    
-
-
-    return originalKeys;
-
-  }
 
   _registerMouseListener() async {
     _mouseListenerId = getListenerBackend()!.addMouseListener(_onMouseEvent);
@@ -565,6 +548,8 @@ class KeyEventProvider extends ChangeNotifier with TrayListener {
       }
     }
 
+    
+
     // check if key pressed again while in view
     // ignoring history and current display events has key id
     if (_ignoreHistory &&
@@ -616,6 +601,31 @@ class KeyEventProvider extends ChangeNotifier with TrayListener {
       _keyboardEvents[_groupId!] = {};
     }
 
+//////////////////////
+    int keyIndex = event.keyId;
+
+    debugPrint("check ${event.isLetter} && ${_keyboardEvents[_groupId] !=null}");
+
+    debugPrint("_groupId $_groupId && ${_keyboardEvents[_groupId]}");
+
+    if (event.isLetter && _keyboardEvents[_groupId] !=null && _keyboardEvents[_groupId]!.containsKey(event.keyId)){
+      
+      int mapLen = _keyboardEvents[_groupId]!.length;
+      keyIndex = (event.keyId+9000+mapLen);
+      // track key pressed down
+    }
+
+    /* if (event.isLetter){
+      int mapLen = _keyboardEvents[_groupId]!.length;
+      keyIndex = mapLen;
+    } */
+
+    debugPrint("event.keyId: ${event.keyId} keyIndex: $keyIndex");
+/////////////////
+
+
+
+
     // don't show history i.e. replace existing with new keys
     if (_ignoreHistory) {
       // remove key events in display but not pressed down
@@ -639,17 +649,17 @@ class KeyEventProvider extends ChangeNotifier with TrayListener {
         // handle pressed again
         if (
             // last pressed event
-            (events?.keys.last == event.keyId && !event.isLetter) && // FRANCO
+            (events?.keys.last == keyIndex && !event.isLetter) && // FRANCO
                 // other keys are pressed down
                 events!.values
                     .take(events.length - 1)
                     .every((value) => value.pressed)) {
           // press the last item
           // track key pressed down
-          _keyDown[event.keyId] = event;
+          _keyDown[keyIndex] = event;
           // animate key press
-          final data = _keyboardEvents[_groupId]![event.keyId]!;
-          _keyboardEvents[_groupId]![event.keyId] = data.copyWith(
+          final data = _keyboardEvents[_groupId]![keyIndex]!;
+          _keyboardEvents[_groupId]![keyIndex] = data.copyWith(
             pressed: true,
             pressedCount: data.pressedCount + 1,
           );
@@ -676,9 +686,12 @@ class KeyEventProvider extends ChangeNotifier with TrayListener {
     }
 
     // track key pressed down
-    _keyDown[event.keyId] = event;
-
-    if (!event.isLetter){
+    _keyDown[keyIndex] = event;
+    _keyboardEvents[_groupId]![keyIndex] = KeyEventData(
+            event,
+            show: noKeyCapAnimation,
+          );
+    /* if (!event.isLetter){
       _keyboardEvents[_groupId]![event.keyId] = KeyEventData(
             event,
             show: noKeyCapAnimation,
@@ -693,6 +706,10 @@ class KeyEventProvider extends ChangeNotifier with TrayListener {
             event,
             show: noKeyCapAnimation,
           );
+
+        //_animateIn(_groupId!, event.keyId+9000+mapLen);
+
+
       }else{
         _keyboardEvents[_groupId]![event.keyId] = KeyEventData(
             event,
@@ -701,12 +718,12 @@ class KeyEventProvider extends ChangeNotifier with TrayListener {
       }
 
       
-    }
+    } */
 
     
     // animate with configured key cap animation
     if (!noKeyCapAnimation) {
-      _animateIn(_groupId!, event.keyId);
+      _animateIn(_groupId!, keyIndex);
     }
 
     notifyListeners();
@@ -725,7 +742,25 @@ class KeyEventProvider extends ChangeNotifier with TrayListener {
     // sanity check
     if (removedEvent == null || _groupId == null) return;
 
-    _animateOut(_groupId!, event.keyId);
+    int keyIndex = event.keyId;
+
+    //debugPrint("check ${event.isLetter} && ${_keyboardEvents[_groupId] !=null}");
+
+    //debugPrint("_groupId $_groupId && ${_keyboardEvents[_groupId]}");
+
+    if (event.isLetter && _keyboardEvents[_groupId] !=null && _keyboardEvents[_groupId]!.containsKey(event.keyId)){
+      
+      int mapLen = _keyboardEvents[_groupId]!.length;
+      keyIndex = (event.keyId+9000+mapLen);
+      // track key pressed down
+    }
+
+    /* if (event.isLetter){
+      int mapLen = _keyboardEvents[_groupId]!.length;
+      keyIndex = mapLen;
+    } */
+
+    _animateOut(_groupId!, keyIndex);
 
     debugPrint("⬆️ [${event.label}]");
 
@@ -792,7 +827,7 @@ class KeyEventProvider extends ChangeNotifier with TrayListener {
     }
 
     // remove key event
-    _keyboardEvents[groupId]!.remove(keyId);
+    _keyboardEvents[groupId]!.remove(keyId);  //FRANCO
     notifyListeners();
 
     // check if the group is exhausted
