@@ -48,6 +48,7 @@ const _letters = [
   LogicalKeyboardKey.keyT,
   LogicalKeyboardKey.keyU,
   LogicalKeyboardKey.keyV,
+  LogicalKeyboardKey.keyW,
   LogicalKeyboardKey.keyX,
   LogicalKeyboardKey.keyY,
   LogicalKeyboardKey.keyZ,
@@ -154,7 +155,8 @@ const _numpad = [
 
 class KeyEventData {
   const KeyEventData(
-    this.rawEvent, {
+    this.rawEvent, 
+    this.time, {
     this.show = false,
     this.pressed = true,
     this.pressedCount = 1,
@@ -163,6 +165,8 @@ class KeyEventData {
   // pressed state of the key
   // initially comes pressed
   final bool pressed;
+
+  final DateTime time;
 
   // number of times pressed
   final int pressedCount;
@@ -237,9 +241,10 @@ class KeyEventData {
   // returns null if doesn't has associated icon
   String? get icon => keymaps[_id]?.icon;
 
-  KeyEventData copyWith({bool? show, bool? pressed, int? pressedCount}) {
+  KeyEventData copyWith({DateTime? time, bool? show, bool? pressed, int? pressedCount}) {
     return KeyEventData(
       rawEvent,
+      time ?? this.time,
       show: show ?? this.show,
       pressed: pressed ?? this.pressed,
       pressedCount: pressedCount ?? this.pressedCount,

@@ -118,6 +118,7 @@ class KeyEventProvider extends ChangeNotifier with TrayListener {
 
   // id for each key events group
   String? _groupId;
+  int _pressCounter = 0;
 
   // main list of key events to be consumed by the visualizer
   // may not include history is historyMode is set to none
@@ -126,6 +127,7 @@ class KeyEventProvider extends ChangeNotifier with TrayListener {
 
   int? _lastRealTimestampSecs;
   String _lastGroupId = "";
+  DateTime _lastGroupIdTimeGenerated = DateTime.now();
 
   // filter letters, numbers, symbols, etc. and
   // show hotkeys/keyboard shortuts
@@ -211,6 +213,49 @@ class KeyEventProvider extends ChangeNotifier with TrayListener {
 
   bool get _ignoreHistory =>
       _historyMode == VisualizationHistoryMode.none || _styling;
+
+  generateGroupId(){
+    DateTime now = DateTime.now();
+
+    final diff = now.difference(_lastGroupIdTimeGenerated).inMilliseconds;
+
+    debugPrint("generateGroupId diff $diff");
+
+    if (diff <=100 ){
+      return _lastGroupId;
+    }
+    else if (diff <=1000 ){
+
+      Map<int, KeyEventData>? lastEventGroup = _keyboardEvents[_lastGroupId];
+
+      if (lastEventGroup != null && lastEventGroup.length == 2){
+        int letterCount = 0;
+        for (int keyId in lastEventGroup.keys){
+          KeyEventData keyEvData = lastEventGroup[keyId] as KeyEventData;
+
+          if (keyEvData.isLetter){
+            letterCount += 1;
+          }
+
+
+        }
+
+        if (letterCount == 2){
+          _lastGroupIdTimeGenerated = now;
+          _lastGroupId = _timestamp;
+          return _lastGroupId;
+        }
+
+      }
+
+
+      return _lastGroupId;
+    }else{
+      _lastGroupIdTimeGenerated = now;
+      _lastGroupId = _timestamp;
+      return _lastGroupId;
+    }
+  }
 
   set styling(bool value) {
     if (_hasError) return;
@@ -537,7 +582,7 @@ class KeyEventProvider extends ChangeNotifier with TrayListener {
     //   debugPrint("⬇️ [${event.data.keyLabel}] not hotkey, returning...");
     //   return;
     // }
-
+    DateTime timeKeyDown = DateTime.now();
     // filter unknown keyaaa
     if (event.logicalKey.keyLabel == "") {
       // fake mouse event
@@ -593,9 +638,10 @@ class KeyEventProvider extends ChangeNotifier with TrayListener {
     }
 
     // init group id
-    _groupId ??= _timestamp;
+    //_groupId ??= _timestamp;
+    _groupId ??= generateGroupId();
     _lastRealTimestampSecs ??= _realTimestamp;
-    _lastGroupId = _groupId as String;
+    //_lastGroupId = _groupId as String;
     // create group if not created
     if (!_keyboardEvents.containsKey(_groupId)) {
       _keyboardEvents[_groupId!] = {};
@@ -608,12 +654,23 @@ class KeyEventProvider extends ChangeNotifier with TrayListener {
 
     debugPrint("_groupId $_groupId && ${_keyboardEvents[_groupId]}");
 
-    if (event.isLetter && _keyboardEvents[_groupId] !=null && _keyboardEvents[_groupId]!.containsKey(event.keyId)){
+    if (event.isLetter && _keyboardEvents[_groupId] !=null  && _keyboardEvents[_groupId]!.containsKey(event.keyId) )
+    {
       
       int mapLen = _keyboardEvents[_groupId]!.length;
       keyIndex = (event.keyId+9000+mapLen);
+
+      keyIndex = _pressCounter;
+      _pressCounter -= 1;
       // track key pressed down
     }
+
+    /* if (event.isLetter){
+      keyIndex = _pressCounter;
+      _pressCounter += 1;
+    } */
+
+
 
     /* if (event.isLetter){
       int mapLen = _keyboardEvents[_groupId]!.length;
@@ -638,8 +695,16 @@ class KeyEventProvider extends ChangeNotifier with TrayListener {
     else {
       // enforce display events length
       if (_keyboardEvents.length > _maxHistory) {
+
+          List<String> groupsForRemove = [];
+
         for (final group in _keyboardEvents.keys
             .take(_keyboardEvents.length - _maxHistory)) {
+          //_keyboardEvents.remove(group);
+          groupsForRemove.add(group);
+        }
+
+        for (final group in groupsForRemove) {
           _keyboardEvents.remove(group);
         }
       }
@@ -679,7 +744,7 @@ class KeyEventProvider extends ChangeNotifier with TrayListener {
           // duplicate key downs
           _keyboardEvents[_groupId!] = {
             for (final entry in _keyDown.entries)
-              entry.key: KeyEventData(entry.value),
+              entry.key: KeyEventData(entry.value, timeKeyDown),
           };
         }
       }
@@ -689,6 +754,7 @@ class KeyEventProvider extends ChangeNotifier with TrayListener {
     _keyDown[keyIndex] = event;
     _keyboardEvents[_groupId]![keyIndex] = KeyEventData(
             event,
+            timeKeyDown,
             show: noKeyCapAnimation,
           );
     /* if (!event.isLetter){
@@ -735,12 +801,45 @@ class KeyEventProvider extends ChangeNotifier with TrayListener {
     _lastKeyDown = true;
   }
 
-  _onKeyUp(RawKeyUpEvent event) async {
-    // track key pressed up
-    final removedEvent = _keyDown.remove(event.keyId);
+  getLastKeyIndex(keyId){
+    var notNull = _keyboardEvents[_groupId];
+    int index = keyId;
+    DateTime lastDateChecked = DateTime.fromMicrosecondsSinceEpoch(0);
 
-    // sanity check
-    if (removedEvent == null || _groupId == null) return;
+    if (notNull != null){
+      for (final key in notNull.keys){
+            KeyEventData? evData = notNull[key];
+            if (evData != null && evData.id == keyId){
+              if (evData.time.isAfter(lastDateChecked)){
+                index = key;
+                lastDateChecked = evData.time;
+              }
+            }
+            
+
+
+          }
+    }
+
+    return index;
+    
+  }
+
+  _onKeyUp(RawKeyUpEvent event) async {
+    debugPrint("_onKeyUp _groupId: $_groupId event: $event");
+    // track key pressed up
+    RawKeyDownEvent? removedEvent;
+
+    if (_groupId == null){
+      removedEvent = _keyDown.remove(event.keyId);
+
+      // sanity check
+      if (removedEvent == null || _groupId == null) {
+        debugPrint("return 1;");
+        return;
+        }
+    }
+    
 
     int keyIndex = event.keyId;
 
@@ -748,12 +847,26 @@ class KeyEventProvider extends ChangeNotifier with TrayListener {
 
     //debugPrint("_groupId $_groupId && ${_keyboardEvents[_groupId]}");
 
-    if (event.isLetter && _keyboardEvents[_groupId] !=null && _keyboardEvents[_groupId]!.containsKey(event.keyId)){
+    if (_keyboardEvents[_groupId] !=null)// && _keyboardEvents[_groupId]!.containsKey(event.keyId))
+    {
       
-      int mapLen = _keyboardEvents[_groupId]!.length;
-      keyIndex = (event.keyId+9000+mapLen);
+      //int mapLen = _keyboardEvents[_groupId]!.length;
+      //keyIndex = (event.keyId+9000+mapLen);
+      keyIndex = getLastKeyIndex(event.keyId);
       // track key pressed down
     }
+
+    debugPrint("keyIndex: $keyIndex");
+
+    debugPrint("_keyDown: $_keyDown");
+    
+    removedEvent = _keyDown.remove(keyIndex);
+
+
+    if (removedEvent == null) {
+        debugPrint("return 2;");
+        return;
+        }
 
     /* if (event.isLetter){
       int mapLen = _keyboardEvents[_groupId]!.length;
@@ -762,7 +875,7 @@ class KeyEventProvider extends ChangeNotifier with TrayListener {
 
     _animateOut(_groupId!, keyIndex);
 
-    debugPrint("⬆️ [${event.label}]");
+    debugPrint("⬆️ [${event.label}] keyIndex: $keyIndex");
 
     // no keys pressed or only left with mouse events
     if (_keyDown.isEmpty) {
@@ -791,13 +904,13 @@ class KeyEventProvider extends ChangeNotifier with TrayListener {
   }
 
   _animateOut(String groupId, int keyId) async {
-    final event = _keyboardEvents[groupId]?[keyId];
+     final event = _keyboardEvents[groupId]?[keyId];
     if (event == null) return;
 
     // animate key released
     _keyboardEvents[groupId]![keyId] = event.copyWith(pressed: false);
     notifyListeners();
-
+    
     // don't animate out when styling i.e. settings windows opened
     if (_styling) return;
 
@@ -816,10 +929,24 @@ class KeyEventProvider extends ChangeNotifier with TrayListener {
       debugPrint("key pressed again, returning...");
       return;
     }
-
+    
     if (!noKeyCapAnimation) {
       // animate out the key event
-      _keyboardEvents[groupId]![keyId] = newEvent!.copyWith(show: false);
+      //_keyboardEvents[groupId]![keyId] = newEvent!.copyWith(show: false);
+
+
+      Map<int, KeyEventData>? gData = _keyboardEvents[groupId];
+
+      if (gData != null){
+        for (int keyIndex in gData.keys){
+          KeyEventData? eData = gData[keyIndex];
+          _keyboardEvents[groupId]![keyIndex] = eData!.copyWith(show: false);
+
+          }
+      }
+      
+
+
       notifyListeners();
 
       // wait for animation to finish
@@ -827,13 +954,28 @@ class KeyEventProvider extends ChangeNotifier with TrayListener {
     }
 
     // remove key event
-    _keyboardEvents[groupId]!.remove(keyId);  //FRANCO
+    //_keyboardEvents[groupId]!.remove(keyId);  //FRANCO
+
+    Map<int, KeyEventData>? gData = _keyboardEvents[groupId];
+      List<int> listToRemove = [];
+      if (gData != null){
+        for (int keyIndex in gData.keys){
+          //_keyboardEvents[groupId]!.remove(keyIndex);
+          listToRemove.add(keyIndex);
+          }
+      }
+
+    for (int keyIndex in listToRemove){
+      _keyboardEvents[groupId]!.remove(keyIndex);
+    }
+    _keyboardEvents.remove(groupId);
+
     notifyListeners();
 
     // check if the group is exhausted
-    if (!_ignoreHistory && _keyboardEvents[groupId]!.isEmpty) {
+    /* if (!_ignoreHistory && _keyboardEvents[groupId]!.isEmpty) {
       _keyboardEvents.remove(groupId);
-    }
+    }  */
   }
 
   _removeKeyboardListener() {
@@ -872,12 +1014,12 @@ class KeyEventProvider extends ChangeNotifier with TrayListener {
   String get _timestamp {
     final now = DateTime.now();
 
-    if (_lastGroupId != ""){
+    /* if (_lastGroupId != ""){
       return _lastGroupId;
-    }
+    } */
     // FRANCO
-    //return "${now.minute}${now.second}${now.millisecond}"; //Original
-    return "${now.minute}${now.second}${0}"; //Edit
+    return "${now.minute}${now.second}${now.millisecond}"; //Original
+    //return "${now.minute}${now.second}${0}"; //Edit
   }
 
   int get _realTimestamp {
@@ -886,6 +1028,8 @@ class KeyEventProvider extends ChangeNotifier with TrayListener {
     //return "${now.minute}${now.second}${now.millisecond}"; //Original
     return now.hour*3600 + now.minute*60 + now.second; //Edit
   }
+
+  
 
   _setTrayIcon() async {
     if (_visualizeEvents) {
