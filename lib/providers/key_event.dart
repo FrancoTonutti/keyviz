@@ -371,12 +371,15 @@ class KeyEventProvider extends ChangeNotifier with TrayListener {
   }
 
   _onMouseEvent(MouseEvent event) {
+
+    
     // mouse moved
     if (event is MouseMoveEvent) {
       _onMouseMove(event);
     }
     // mouse button clicked/released
     else if (event is MouseButtonEvent) {
+      //debugPrint("_onMouseEvent ${event}");
       _onMouseButton(event);
     }
     // mouse wheel scrolled
@@ -423,6 +426,7 @@ class KeyEventProvider extends ChangeNotifier with TrayListener {
   }
 
   _onMouseButton(MouseButtonEvent event) {
+    
     final wasDragging = _dragging;
     final leftOrRightDown = event.type == MouseButtonEventType.leftButtonDown ||
         event.type == MouseButtonEventType.rightButtonDown;
@@ -433,7 +437,7 @@ class KeyEventProvider extends ChangeNotifier with TrayListener {
 
     // update offset
     _cursorOffset = event.offset;
-
+    debugPrint("_onMouseButton ${event.type}", );
     // mouse button down
     if (leftOrRightDown) {
       _mouseButtonDown = true;

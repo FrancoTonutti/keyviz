@@ -40,7 +40,7 @@ class AppearanceTabView extends StatelessWidget {
           action: Selector<KeyStyleProvider, double>(
             selector: (_, keyStyle) => keyStyle.margin,
             builder: (context, margin, _) => XSlider(
-              max: 192,
+              max: 512,
               suffix: "px",
               value: margin,
               onChanged: (value) => context.keyStyle.margin = value,
